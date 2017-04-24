@@ -13,8 +13,8 @@ The goals / steps of this project are the following:
 
 [//]: # (Image References)
 
-[image1]: ./examples/placeholder.png "Model Visualization"
-[image2]: ./examples/placeholder.png "Grayscaling"
+[image1]: ./img/multiple-camera.png "Images from Multiple Cameras"
+[image2]: ./img/flipped-image.png "Flipped image"
 [image3]: ./examples/placeholder_small.png "Recovery Image"
 [image4]: ./examples/placeholder_small.png "Recovery Image"
 [image5]: ./examples/placeholder_small.png "Recovery Image"
@@ -47,35 +47,55 @@ The model.py file contains the code for training and saving the convolution neur
 
 ### Model Architecture and Training Strategy
 
-#### 1. An appropriate model architecture has been employed
+#### 1. Data Augmentation
 
-My model consists of a convolution neural network with 3x3 filter sizes and depths between 32 and 128 (model.py lines 18-24) 
+Only sample dataset provided by Udacity is used in training. Besides images taken by the center camera, images taken by left and right cameras are also used in training. To use images of left (right) camera, steering angle is offset by +0.2 (-0.2) degree. 
 
-The model includes RELU layers to introduce nonlinearity (code line 20), and the data is normalized in the model using a Keras lambda layer (code line 18). 
+![alt text][image1]
 
-#### 2. Attempts to reduce overfitting in the model
+This is to simulate situations that the car is away from road center and trying to recover. Correction factor of 0.2 degree is optimum for driving speed of 9 (defined in driver.py), and a slightly larger factor (~0.25) is needed for higher driving speed.
 
-The model contains dropout layers in order to reduce overfitting (model.py lines 21). 
+Moreover, dataset is augmented by flipping images and taking the opposite sign of the steering measurement. For example:
 
-The model was trained and validated on different data sets to ensure that the model was not overfitting (code line 10-16). The model was tested by running it through the simulator and ensuring that the vehicle could stay on the track.
+![alt text][image2]
 
-#### 3. Model parameter tuning
+A total number of 48216 images were used in training.
 
-The model used an adam optimizer, so the learning rate was not tuned manually (model.py line 25).
+#### 2. Model 
 
-#### 4. Appropriate training data
+| Layer (type)                 | Output Shape              | Param #
+| -----------------------------| --------------------------| -----------
+| cropping2d_1 (Cropping2D)    | (None, 90, 320, 3)        | 0
+| lambda_1 (Lambda)            | (None, 64, 64, 3)         | 0
+| lambda_2 (Lambda)            | (None, 64, 64, 3)         | 0
+| conv2d_1 (Conv2D)            | (None, 60, 60, 32)        | 2432
+| max_pooling2d_1 (MaxPooling2 | (None, 30, 30, 32)        | 0
+| conv2d_2 (Conv2D)            | (None, 26, 26, 32)        | 25632
+| max_pooling2d_2 (MaxPooling2 | (None, 13, 13, 32)        | 0
+| conv2d_3 (Conv2D)            | (None, 9, 9, 64)          | 51264
+| max_pooling2d_3 (MaxPooling2 | (None, 4, 4, 64)          | 0
+| flatten_1 (Flatten)          | (None, 1024)              | 0
+| dense_1 (Dense)              | (None, 512)               | 524800
+| dense_2 (Dense)              | (None, 64)                | 32832
+| dense_3 (Dense)              | (None, 1)                 | 65
 
-Training data was chosen to keep the vehicle driving on the road. I used a combination of center lane driving, recovering from the left and right sides of the road ... 
+* The first layer (cropping2d) is used to crop unnecessary part of images.
 
-For details about how I created the training data, see the next section. 
+* Layer lambda_1 is to resize images into 64x64 pixels, since high resolution images are not necessary for driving on this track. This way we reduce degree of freedom and save a lot of training time. 
+
+* Layer lambda_2 is to normalize images.
+
+* There are 3 convolutional layers followed by 3 fully connected layers. 
+
+* The model uses an adam optimizer, so the learning rate was not tuned manually (model.py line 110). 
+
+* After training, the model was tested by running it through the simulator and ensuring that the vehicle could stay on the track.
 
 ### Model Architecture and Training Strategy
 
 #### 1. Solution Design Approach
 
-The overall strategy for deriving a model architecture was to ...
-
-My first step was to use a convolution neural network model similar to the ... I thought this model might be appropriate because ...
+My first step was to use a convolution neural network model similar to LeNet. I thought this model might be appropriate because ...
 
 In order to gauge how well the model was working, I split my image and steering angle data into a training and validation set. I found that my first model had a low mean squared error on the training set but a high mean squared error on the validation set. This implied that the model was overfitting. 
 
@@ -93,7 +113,7 @@ The final model architecture (model.py lines 18-24) consisted of a convolution n
 
 Here is a visualization of the architecture (note: visualizing the architecture is optional according to the project rubric)
 
-![alt text][image1]
+
 
 #### 3. Creation of the Training Set & Training Process
 
