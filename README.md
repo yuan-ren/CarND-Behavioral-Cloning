@@ -15,11 +15,6 @@ The goals / steps of this project are the following:
 
 [image1]: ./img/multiple-camera.png "Images from Multiple Cameras"
 [image2]: ./img/flipped-image.png "Flipped image"
-[image3]: ./examples/placeholder_small.png "Recovery Image"
-[image4]: ./examples/placeholder_small.png "Recovery Image"
-[image5]: ./examples/placeholder_small.png "Recovery Image"
-[image6]: ./examples/placeholder_small.png "Normal Image"
-[image7]: ./examples/placeholder_small.png "Flipped Image"
 
 ## Rubric Points
 ### Here I will consider the [rubric points](https://review.udacity.com/#!/rubrics/432/view) individually and describe how I addressed each point in my implementation.  
@@ -39,6 +34,7 @@ My project includes the following files:
 Using the Udacity provided simulator and my drive.py file, the car can be driven autonomously around the track by executing 
 ```sh
 python drive.py model.h5
+
 ```
 
 #### 3. Submission code is usable and readable
@@ -61,7 +57,13 @@ Moreover, dataset is augmented by flipping images and taking the opposite sign o
 
 A total number of 48216 images were used in training.
 
-#### 2. Model 
+#### 2. Training Strategy
+
+My GPU is a low-end GeForce GTX 745 (4GB memory) whose processing power (gflops) is only 1/10 of GTX1080. Training large models on this GPU is really time consuming, so I need to use relatively simple models in training. My first step is to use a convolution neural network model similar to LeNet and I only use images from center camera for training. Trained car runs smoothly but it fails at turns because the car cannot recover from edges of the road. After adding images from left and right cameras in training, the car learns how to recover when it's away from center of road but sometimes it still fails at turns. Then I increase number of parameters in the model by making convolution layers wider and deeper. This way the model is more capable in perceiving the road. 
+
+My final model contains 3 convolutional layers, and it is trained for 8 epochs. After 8 epochs, training loss keeps decreasing but validation loss starts increasing slowly, meaning overfitting of the model. I try to add dropout in each convolutional layer and train the model for 20 epochs. Validation loss decreases monotonically in these 20 epochs but its magnitude is higher than the model without dropout. Also performance of the car is worse than before. So in the end I use the model without dropout and only train 8 epochs.
+
+#### 3. Final Model 
 
 | Layer (type)                 | Output Shape              | Param #
 | -----------------------------| --------------------------| -----------
@@ -79,66 +81,38 @@ A total number of 48216 images were used in training.
 | dense_2 (Dense)              | (None, 64)                | 32832
 | dense_3 (Dense)              | (None, 1)                 | 65
 
-* The first layer (cropping2d) is used to crop unnecessary part of images.
+* The first layer (cropping2d) is used to crop unnecessary part of images. Top 50 rows of pixels and bottom 20 rows of pixels are cropped away.
 
 * Layer lambda_1 is to resize images into 64x64 pixels, since high resolution images are not necessary for driving on this track. This way we reduce degree of freedom and save a lot of training time. 
 
 * Layer lambda_2 is to normalize images.
 
-* There are 3 convolutional layers followed by 3 fully connected layers. 
+* There are 3 convolutional layers followed by 3 fully connected layers. RELU is used as activation function in all layers.
 
 * The model uses an adam optimizer, so the learning rate was not tuned manually (model.py line 110). 
 
 * After training, the model was tested by running it through the simulator and ensuring that the vehicle could stay on the track.
 
-### Model Architecture and Training Strategy
 
-#### 1. Solution Design Approach
+#### 4. Next Step
 
-My first step was to use a convolution neural network model similar to LeNet. I thought this model might be appropriate because ...
+I hope the car can run on the second track even if it's only trained on images from the first track, however the car runs out of road right after start. Difference in the second track is that there are many shadows on the road and the brightness of camera images changes from time to time. To let the model learn about shadows and change of brightness, dataset is augmented using the following functions:
 
-In order to gauge how well the model was working, I split my image and steering angle data into a training and validation set. I found that my first model had a low mean squared error on the training set but a high mean squared error on the validation set. This implied that the model was overfitting. 
+~~~~
+def adjust_brightness(image):
+    # make image darker
+    return np.array(image*np.random.uniform(0.5, 1.0), dtype=np.uint8)
 
-To combat the overfitting, I modified the model so that ...
+def add_shadow(image):
+    # add a random dark block in image to simulate shadow
+    height, width = image.shape[:2]
+    corner_y = np.random.randint(height-20)
+    corner_x = np.random.randint(30,width)
+    image[corner_y:,:corner_x,:] = image[corner_y:,:corner_x,:]*0.3
+    return image
+~~~~
 
-Then I ... 
-
-The final step was to run the simulator to see how well the car was driving around track one. There were a few spots where the vehicle fell off the track... to improve the driving behavior in these cases, I ....
-
-At the end of the process, the vehicle is able to drive autonomously around the track without leaving the road.
-
-#### 2. Final Model Architecture
-
-The final model architecture (model.py lines 18-24) consisted of a convolution neural network with the following layers and layer sizes ...
-
-Here is a visualization of the architecture (note: visualizing the architecture is optional according to the project rubric)
-
+I have tried deeper models with up to 6 convolutional layers on these augmented dataset, however the car still fails to run on the second track. Need to explore more on data augmentation.
 
 
-#### 3. Creation of the Training Set & Training Process
 
-To capture good driving behavior, I first recorded two laps on track one using center lane driving. Here is an example image of center lane driving:
-
-![alt text][image2]
-
-I then recorded the vehicle recovering from the left side and right sides of the road back to center so that the vehicle would learn to .... These images show what a recovery looks like starting from ... :
-
-![alt text][image3]
-![alt text][image4]
-![alt text][image5]
-
-Then I repeated this process on track two in order to get more data points.
-
-To augment the data sat, I also flipped images and angles thinking that this would ... For example, here is an image that has then been flipped:
-
-![alt text][image6]
-![alt text][image7]
-
-Etc ....
-
-After the collection process, I had X number of data points. I then preprocessed this data by ...
-
-
-I finally randomly shuffled the data set and put Y% of the data into a validation set. 
-
-I used this training data for training the model. The validation set helped determine if the model was over or under fitting. The ideal number of epochs was Z as evidenced by ... I used an adam optimizer so that manually training the learning rate wasn't necessary.
