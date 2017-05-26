@@ -63,12 +63,15 @@ Moreover, I use the following data augumentation technique to generate unlimited
 * Adding shadows on the image. 
 
 An example of image flipping:
+
 ![alt text][image2]
 
 Examples of adjusting image brightness:
+
 ![alt text][image3]
 
 Examples of adding random shadows:
+
 ![alt text][image4]
 
 #### 2. Training Strategy
@@ -102,7 +105,7 @@ This model has been proved working well on self-driving cars, so I borrow it her
 
 * Layer 8: convolution with kernel=(3,3), filter=64, strides=(1,1), valid padding and ELU as activation function.
 
-* Layer 9: dropout 0.5.
+* Layer 9: dropout to reduce overfitting in the model.
 
 * Layer 10: flatten layer.
 
