@@ -133,3 +133,5 @@ This model has been proved working well on self-driving cars, so I borrow it her
 | dense_3 (Dense)              | (None, 10)                 | 510
 | dense_3 (Dense)              | (None, 1)                 | 11
 
+This model is trained for 8 epochs. In each epoch, I use 1000 batches of images with batch size = 64, so a total of 64000 randomly augmented images are used each epoch. 
+ 
