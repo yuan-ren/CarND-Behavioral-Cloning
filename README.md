@@ -15,6 +15,8 @@ The goals / steps of this project are the following:
 
 [image1]: ./img/multiple-camera.png "Images from Multiple Cameras"
 [image2]: ./img/flipped-image.png "Flipped image"
+[image3]: ./img/adjust-brightness.png "Adjusting brightness"
+[image4]: ./img/add_shadow.png "Add shadow"
 
 ## Rubric Points
 ### Here I will consider the [rubric points](https://review.udacity.com/#!/rubrics/432/view) individually and describe how I addressed each point in my implementation.  
@@ -28,7 +30,8 @@ My project includes the following files:
 * model.py containing the script to create and train the model
 * drive.py for driving the car in autonomous mode
 * model.h5 containing a trained convolution neural network 
-* writeup_report.md or writeup_report.pdf summarizing the results
+* writeup_report.pdf summarizing the results
+* video.mp4 a video recording of the vehicle driving autonomously around the track
 
 #### 2. Submission includes functional code
 Using the Udacity provided simulator and my drive.py file, the car can be driven autonomously around the track by executing 
@@ -51,68 +54,79 @@ Only sample dataset provided by Udacity is used in training. Besides images take
 
 This is to simulate situations that the car is away from road center and trying to recover. Correction factor of 0.2 degree is optimum for driving speed of 9 (defined in driver.py), and a slightly larger factor (~0.25) is needed for higher driving speed.
 
-Moreover, dataset is augmented by flipping images and taking the opposite sign of the steering measurement. For example:
+Moreover, I use the following data augumentation technique to generate unlimited number of images for training:
 
+* Horizontally flipping images and taking the opposite sign of the steering measurement.
+
+* Adjusting image brightness.
+
+* Adding shadows on the image. 
+
+An example of image flipping:
 ![alt text][image2]
 
-A total number of 48216 images were used in training.
+Examples of adjusting image brightness:
+![alt text][image3]
+
+Examples of adding random shadows:
+![alt text][image4]
 
 #### 2. Training Strategy
 
-My GPU is a low-end GeForce GTX 745 (4GB memory) whose processing power (gflops) is only 1/10 of GTX1080. Training large models on this GPU is really time consuming, so I need to use relatively simple models in training. My first step is to use a convolution neural network model similar to LeNet and I only use images from center camera for training. Trained car runs smoothly but it fails at turns because the car cannot recover from edges of the road. After adding images from left and right cameras in training, the car learns how to recover when it's away from center of road but sometimes it still fails at turns. Then I increase number of parameters in the model by making convolution layers wider and deeper. This way the model is more capable in perceiving the road. 
+I split images into train and validation set in order to measure the performance at every epoch. Testing is done by running car autonomously on the simulator.
 
-My final model contains 3 convolutional layers, and it is trained for 8 epochs. After 8 epochs, training loss keeps decreasing but validation loss starts increasing slowly, meaning overfitting of the model. I try to add dropout in each convolutional layer and train the model for 20 epochs. Validation loss decreases monotonically in these 20 epochs but its magnitude is higher than the model without dropout. Also performance of the car is worse than before. So in the end I use the model without dropout and only train 8 epochs.
+* Root-mean-squared error is used in the loss function to measure how close the model prediction to the actual steering angle.
+
+* Adam optimizer is used for optimization with learning rate of 1e-4. 
+
+My first step is to use a convolution neural network model similar to LeNet and I only use images from center camera for training. Trained car runs smoothly but it fails at turns because the car cannot recover from edges of the road. After adding images from left and right cameras in training, the car learns how to recover when it's away from center of road but sometimes it still fails at turns. Then I increase number of parameters in the model by making convolution layers wider and deeper. This way the model is more capable in perceiving the road. 
 
 #### 3. Final Model 
+
+My final model is based on the NVIDIA model, which is published in the paper "End to End Learning for Self-Driving Cars". 
+This model has been proved working well on self-driving cars, so I borrow it here to fit steering angle on camera images.
+
+* Layer 1: used to crop unnecessary part of images. Top 50 rows of pixels and bottom 20 rows of pixels are cropped away.
+
+* Layer 2: resize images into 66x200 pixels, as is required by the NVIDIA model. 
+
+* Layer 3: normalize images.
+
+* Layer 4: convolution with kernel=(5,5), filter=24, strides=(2,2), valid padding and ELU as activation function.
+
+* Layer 5: convolution with kernel=(5,5), filter=36, strides=(2,2), valid padding and ELU as activation function.
+
+* Layer 6: convolution with kernel=(5,5), filter=48, strides=(2,2), valid padding and ELU as activation function.
+
+* Layer 7: convolution with kernel=(3,3), filter=64, strides=(1,1), valid padding and ELU as activation function.
+
+* Layer 8: convolution with kernel=(3,3), filter=64, strides=(1,1), valid padding and ELU as activation function.
+
+* Layer 9: dropout 0.5.
+
+* Layer 10: flatten layer.
+
+* Layer 11: fully-connected with 100 neurons.
+
+* Layer 12: fully-connected with 50 neurons.
+
+* Layer 13: fully-connected with 10 neurons.
+
 
 | Layer (type)                 | Output Shape              | Param #
 | -----------------------------| --------------------------| -----------
 | cropping2d_1 (Cropping2D)    | (None, 90, 320, 3)        | 0
-| lambda_1 (Lambda)            | (None, 64, 64, 3)         | 0
-| lambda_2 (Lambda)            | (None, 64, 64, 3)         | 0
-| conv2d_1 (Conv2D)            | (None, 60, 60, 32)        | 2432
-| max_pooling2d_1 (MaxPooling2 | (None, 30, 30, 32)        | 0
-| conv2d_2 (Conv2D)            | (None, 26, 26, 32)        | 25632
-| max_pooling2d_2 (MaxPooling2 | (None, 13, 13, 32)        | 0
-| conv2d_3 (Conv2D)            | (None, 9, 9, 64)          | 51264
-| max_pooling2d_3 (MaxPooling2 | (None, 4, 4, 64)          | 0
-| flatten_1 (Flatten)          | (None, 1024)              | 0
-| dense_1 (Dense)              | (None, 512)               | 524800
-| dense_2 (Dense)              | (None, 64)                | 32832
-| dense_3 (Dense)              | (None, 1)                 | 65
-
-* The first layer (cropping2d) is used to crop unnecessary part of images. Top 50 rows of pixels and bottom 20 rows of pixels are cropped away.
-
-* Layer lambda_1 is to resize images into 64x64 pixels, since high resolution images are not necessary for driving on this track. This way we reduce degree of freedom and save a lot of training time. 
-
-* Layer lambda_2 is to normalize images.
-
-* There are 3 convolutional layers followed by 3 fully connected layers. RELU is used as activation function in all layers.
-
-* The model uses an adam optimizer, so the learning rate was not tuned manually (model.py line 110). 
-
-* After training, the model was tested by running it through the simulator and ensuring that the vehicle could stay on the track.
-
-
-#### 4. Next Step
-
-I hope the car can run on the second track even if it's only trained on images from the first track, however the car runs out of road right after start. Difference in the second track is that there are many shadows on the road and the brightness of camera images changes from time to time. To let the model learn about shadows and change of brightness, dataset is augmented using the following functions:
-
-~~~~
-def adjust_brightness(image):
-    # make image darker
-    return np.array(image*np.random.uniform(0.5, 1.0), dtype=np.uint8)
-
-def add_shadow(image):
-    # add a random dark block in image to simulate shadow
-    height, width = image.shape[:2]
-    corner_y = np.random.randint(height-20)
-    corner_x = np.random.randint(30,width)
-    image[corner_y:,:corner_x,:] = image[corner_y:,:corner_x,:]*0.3
-    return image
-~~~~
-
-I have tried deeper models with up to 6 convolutional layers on these augmented dataset, however the car still fails to run on the second track. Need to explore more on data augmentation.
-
-
+| lambda_1 (Lambda)            | (None, 66, 200, 3)        | 0
+| lambda_2 (Lambda)            | (None, 66, 200, 3)        | 0
+| conv2d_1 (Conv2D)            | (None, 31, 98, 24)        | 1824
+| conv2d_2 (Conv2D)            | (None, 14, 47, 36)        | 21636
+| conv2d_3 (Conv2D)            | (None, 5, 22, 48)          | 43248
+| conv2d_4 (Conv2D)            | (None, 3, 20, 64)          | 27712
+| conv2d_5 (Conv2D)            | (None, 1, 18, 64)          | 36928
+| dropout_1 (Dropout)          | (None, 1, 18, 64)              | 0
+| flatten_1 (Flatten)          | (None, 1152)              | 0
+| dense_1 (Dense)              | (None, 100)               | 115300
+| dense_2 (Dense)              | (None, 50)                | 5050
+| dense_3 (Dense)              | (None, 10)                 | 510
+| dense_3 (Dense)              | (None, 1)                 | 11
 
